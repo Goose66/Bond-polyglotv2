@@ -1,0 +1,26 @@
+<editors>
+  <editor id="CTR_BOOL">
+    <!-- ISY Bool UOM -->
+    <range uom="2" subset="0,1" />
+  </editor>
+  <editor id="CFN_ST">
+    <!-- ISY Percent UOM -->
+    <range uom="51" subset="0-100" nls="IX_CFN_ST" />
+  </editor>
+  <editor id="CFN_SPEED">
+    <!-- ISY Percent UOM -->
+    <range uom="56" subset="1-10" />
+  </editor>
+  <editor id="CFN_DIR">
+    <!-- ISY Index UOM with custom labels in NLS -->
+    <range uom="25" subset="0, 1" nls="IX_CFN_DIR" />
+  </editor>
+  <editor id="LGT_ST">
+    <!-- ISY On/Off UOM -->
+    <range uom="51" subset="0-100" nls="IX_LGT_ST" />
+  </editor>
+  <editor id="NDL_ST">
+    <!-- ISY On/Off UOM -->
+    <range uom="78" />
+  </editor>
+</editors>

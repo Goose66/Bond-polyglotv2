@@ -1,0 +1,85 @@
+<nodeDefs>
+  <nodeDef id="CONTROLLER" nls="CTR">
+    <editors />
+    <sts>
+      <st id="ST" editor="CTR_BOOL" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DISCOVER" />
+        <cmd id="UPDATE_PROFILE" />
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="BRIDGE" nls="BRD">
+    <editors />
+    <sts>
+      <st id="ST" editor="CTR_BOOL" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="QUERY" />
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="CEILING_FAN" nls="CFN">
+    <editors />
+    <sts>
+      <st id="ST" editor="CFN_ST" />
+      <st id="GV0" editor="CFN_DIR" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DON">
+          <p id="" editor="CFN_ST" optional="T" init="ST" />
+        </cmd>
+        <cmd id="DOF" />
+        <cmd id="BRT" />
+        <cmd id="DIM" />
+        <cmd id="SET_SPEED">
+          <p id="FAN_SPEED" editor="CFN_SPEED" />
+        </cmd>          
+        <cmd id="SET_DIRECTION">
+          <p id="" editor="CFN_DIR" init="GV0" />
+        </cmd>          
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="LIGHT" nls="LGT">
+    <editors />
+    <sts>
+      <st id="ST" editor="LGT_ST" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DON">
+          <p id="" editor="LGT_ST" optional="T" init="ST" />
+        </cmd>
+        <cmd id="DOF" />
+        <cmd id="DFON" />
+        <cmd id="DFOF" />        
+        <cmd id="BRT" />
+        <cmd id="DIM" />
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="NODIM_LIGHT" nls="NDL">
+    <editors />
+    <sts>
+      <st id="ST" editor="NDL_ST" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DON" />
+        <cmd id="DOF" />
+        <cmd id="DFON" />
+        <cmd id="DFOF" />        
+      </accepts>
+    </cmds>
+  </nodeDef>
+</nodeDefs>

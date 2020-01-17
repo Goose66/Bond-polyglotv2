@@ -13,7 +13,7 @@
   </editor>
   <editor id="CFN_DIR">
     <!-- ISY Index UOM with custom labels in NLS -->
-    <range uom="25" subset="0, 1" nls="IX_CFN_DIR" />
+    <range uom="25" subset="0-2" nls="IX_CFN_DIR" />
   </editor>
   <editor id="LGT_ST">
     <!-- ISY On/Off UOM -->

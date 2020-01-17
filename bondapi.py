@@ -39,6 +39,10 @@ _API_GET_BRIDGE_VERSION = {
     "path": "/v2/sys/version",
     "method": "GET"
 }
+_API_GET_BRIDGE_INFO = {
+    "path": "/v2/bridge",
+    "method": "GET"
+}
 
 # Device actions
 API_ACTION_TURN_ON = "TurnOn"
@@ -113,8 +117,6 @@ class BondAPI(object):
     # Call the specified REST API
     def _call_api(self, api, deviceID = None, action = None, arg = None):
 
-        self._logger.debug("in _call_api()...")
-
         if arg:
             payload = {"argument": arg}
         else:
@@ -123,7 +125,7 @@ class BondAPI(object):
         method = api["method"]
         path = api["path"].format(device_id = deviceID, action_id = action) 
 
-        # uncomment the next line to dump POST data to log file for debugging
+        # uncomment the next line to dump HTTP request data to log file for debugging
         #self._logger.debug("HTTP %s data: %s", method + " " + path, payload)
 
         try:
@@ -150,6 +152,9 @@ class BondAPI(object):
             self._logger.error("Unexpected error occured: %s", sys.exc_info()[0])
             raise
 
+        # uncomment the next line to dump HTTP response to log file for debugging
+        #self._logger.debug("HTTP response code: %d data: %s", response.status_code, response.text)
+
         return response
 
     # Get a list of the devices (fans, fireplaces, motorized shades, generic) setup in the Bond bridge or device
@@ -158,15 +163,13 @@ class BondAPI(object):
     def getDeviceList(self):
         """Returns list of devices setup in the bond bridge."""
 
+        self._logger.debug("in API getDeviceList()...")
+
         # get the device list
         response  = self._call_api(_API_GET_DEVICE_LIST)
         
-        # pass through connection errors (none)
-        if not response:
-            return None
-        
-        # otherwise get the device IDs from the response data
-        elif int(response.headers["content-length"]) > 0:
+        # if data returned, get the device IDs from the response data
+        if response and int(response.headers["content-length"]) > 0:
 
             respData = response.json()
             deviceList = {}
@@ -183,61 +186,95 @@ class BondAPI(object):
                     # add the device as an item to the device list dict
                     deviceList.update({deviceID: devInfo})
 
-        return deviceList
+            return deviceList
+
+        # otherwise return error (False)
+        else:
+            return False
 
     # Get properties of device
     def getDeviceProperties(self, deviceID):
         """Returns dictionary of properties for the device."""
 
+        self._logger.debug("in API getDeviceProperties()...")
+
         response = self._call_api(_API_GET_DEVICE_PROPERTIES, deviceID)
         
-        # pass through connection errors (false)
-        if not response:
-            return False
-        
-        # otherwise return the properties dictionary from the response data
-        elif int(response.headers["content-length"]) > 0:
+        # if response data was returned, then return the properties dictionary from the response data
+        if response and int(response.headers["content-length"]) > 0:
 
             respData = response.json()
             return respData
+
+        # otherwise return error (false)
+        else:
+            return False
 
     # Get state of device
     def getDeviceState(self, deviceID):
         """Returns dictionary of state variables for the device."""
 
+        self._logger.debug("in API getDeviceState()...")
+
         response = self._call_api(_API_GET_DEVICE_STATE, deviceID)
         
-        # pass through connection errors (false)
-        if not response:
-            return False
-        
-        # otherwise return the state vars dictionary from the response data
-        elif int(response.headers["content-length"]) > 0:
+        # if response data was returned, then return the state vars dictionary from the response data
+        if response and int(response.headers["content-length"]) > 0:
 
             respData = response.json()
             return respData
+
+        # otherwise return error (false)
+        else:
+            return False
        
     # Execute a device action
     def execDeviceAction(self, deviceID, action, argument = None):
         """Executes the specified action for the device."""
+        
+        self._logger.debug("in API execDeviceAction()...")
 
-        return self._call_api(_API_DEVICE_ACTION, deviceID, action, argument)    
+        # Call the API with the specified action and device ID
+        response = self._call_api(_API_DEVICE_ACTION, deviceID, action, argument)
+
+        # If a good code was returned, then return True
+        if response and response.status_code == 204:
+            return True
+
+        # Otherwise, return False
+        else:
+            return False
 
     # Get bridge information
     def getBridgeInfo(self):
-        """Returns dictionary of properties for version information about hardware and firmware."""
+        """Returns dictionary of properties for the bridge."""
 
+        self._logger.debug("in API getBridgeInfo()...")
+
+        # Get the version information for the bridge
         response = self._call_api(_API_GET_BRIDGE_VERSION)
 
-        # pass through connection errors (false)
-        if not response:
-            return False
-        
-        # otherwise return the properties dictionary from the response data
-        elif int(response.headers["content-length"]) > 0:
+        # If a response was returned and it has contents
+        if response and int(response.headers["content-length"]) > 0:
 
-            respData = response.json()
-            return respData
+            # Get the bridge properties dictionary from the response data
+            bridgeInfo = response.json()
+
+            # Get the name of the bridge.
+            # Note this API is not in the v2 documentation, so it may go away
+            response = self._call_api(_API_GET_BRIDGE_INFO)
+            if response and int(response.headers["content-length"]) > 0:
+
+                # add the name property from the response to the return data
+                respData = response.json()
+                if "name" in respData.keys():
+                    bridgeInfo["name"] = respData["name"]
+                
+            return bridgeInfo
+
+        # otherwise return error (False)
+        else:
+            return False
 
     # Ping the bridge to see if it is connected
     def isBridgeAlive(self):
@@ -245,3 +282,6 @@ class BondAPI(object):
 
         return (self._call_api(_API_GET_BRIDGE_VERSION) != False)   
 
+    # Close the session (prevents resource warnings when the class is released)
+    def close(self):
+        self._bridgeSession.close()

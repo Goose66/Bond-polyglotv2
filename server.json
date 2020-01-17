@@ -12,8 +12,8 @@
         {
            "title": "bond-poly: a Polyglot NodeServer for Olibra Bond™ Bridge integration via local API.",
            "author": "W. Randy King (Goose66)",
-           "version": "0.2.1",
-           "date": "January 3, 2020",
+           "version": "0.3.1",
+           "date": "January 16, 2020",
            "source": "https://github.com/Goose66/bond-polyglotv2",
            "license": "https://github.com/Goose66/bond-polyglotv2/master/LICENSE"
        }

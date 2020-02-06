@@ -1,5 +1,5 @@
 {
-    "name": "Bond Bridge",
+    "name": "BondBridge",
     "docs": "https://github.com/Goose66/bond-polyglotv2",
     "type": "python3",
     "executable": "bond-poly.py",

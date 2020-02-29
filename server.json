@@ -4,7 +4,7 @@
     "type": "python3",
     "executable": "bond-poly.py",
     "install": "install.sh",
-    "description": "Access ceiling fans and embeded lights through the Olibra Bond™ Bridge via local API.",
+    "description": "Access ceiling fans, embeded lights, shades, and fireplaces through the Olibra Bond™ Bridge via local API.",
     "notice": "",
     "shortPoll": "10",
     "longPoll": "60",
@@ -12,8 +12,8 @@
         {
            "title": "bond-poly: a Polyglot NodeServer for Olibra Bond™ Bridge integration via local API.",
            "author": "W. Randy King (Goose66)",
-           "version": "0.3.1",
-           "date": "January 16, 2020",
+           "version": "0.4.2",
+           "date": "February 29, 2020",
            "source": "https://github.com/Goose66/bond-polyglotv2",
            "license": "https://github.com/Goose66/bond-polyglotv2/master/LICENSE"
        }

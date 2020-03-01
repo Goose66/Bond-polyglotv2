@@ -13,6 +13,7 @@ import polyinterface
 _ISY_BOOL_UOM =2 # Used for reporting status values for Controller and Bridge nodes
 _ISY_PERCENT_UOM = 51 # For fan speed and light level, as a percentage
 _ISY_ON_OFF_UOM = 78 # For non-dimmable light: 0-Off 100-On
+_ISY_BARRIER_STATUS_UOM = 97 # For shades: 0-Closed, 100-Open, 101-Unknown, 102-Stopped, 103-Closing, 104–Opening
 _ISY_RAW_UOM = 56 # Raw value form device UOM (speed and direction)
 _ISY_INDEX_UOM = 25 # Custom index UOM for translating direction values
 _IX_CFM_DIR_NA = 0
@@ -81,7 +82,7 @@ class CeilingFan(polyinterface.Node):
     # Turn on the fan
     def cmd_don(self, command):
 
-        _LOGGER.debug("Turn on fan in cmd_don(%s)...", str(command))
+        _LOGGER.debug("Turn on fan in cmd_don: %s", str(command))
 
         # if a parameter (% speed) was specified, then use SetSpeed command to set the fan speed
         if command.get("value") is not None:
@@ -177,7 +178,7 @@ class CeilingFan(polyinterface.Node):
     # Change speed by speed value (allow fan speed to be set to known speed by user)
     def cmd_set_speed(self, command):
 
-        _LOGGER.debug("Set fan speed cmd_set_speed(%s)...", str(command))
+        _LOGGER.debug("Set fan speed cmd_set_speed: %s", str(command))
 
         # retrieve the speed value for the command
         query = command.get('query')
@@ -203,7 +204,7 @@ class CeilingFan(polyinterface.Node):
     # Set fan direction
     def cmd_set_direction(self, command):
 
-        _LOGGER.debug("Set fan direction in cmd_set_direction(%s)...", str(command))
+        _LOGGER.debug("Set fan direction in cmd_set_direction: %s", str(command))
 
         # ignore the command if the fan does not support set direction
         if self._hasDirection:
@@ -282,7 +283,7 @@ class CeilingFan(polyinterface.Node):
     def computeFanSpeed(percent, maxSpeed):
         return  int(percent / 100 * (maxSpeed - 1) + 1)
 
-# Node for a non-dimming light attached to a ceiling fan (handled independently)
+# Node for a dimmable light attached to a ceiling fan (handled independently)
 class Light(polyinterface.Node):
 
     id = "LIGHT"
@@ -295,7 +296,6 @@ class Light(polyinterface.Node):
         super(Light, self).__init__(controller, primary, addr, name)
     
         # override the parent node with the bridge node (defaults to controller)
-        # Note: this is for future functionality of multiple bond bridges
         self.parent = self.controller.nodes[self.primary]
 
         if deviceID is None:
@@ -318,7 +318,7 @@ class Light(polyinterface.Node):
     # Turn on the light
     def cmd_don(self, command):
 
-        _LOGGER.debug("Turn on light in cmd_don(%s)...", str(command))
+        _LOGGER.debug("Turn on light in cmd_don: %s", str(command))
 
         # if a parameter (% brightness) was specified, then use SetBrightness command
         if command.get("value") is not None:
@@ -358,7 +358,7 @@ class Light(polyinterface.Node):
     # Turn off the light
     def cmd_dof(self, command):
 
-        _LOGGER.debug("Turn off light in cmd_dof(%s)...", str(command))
+        _LOGGER.debug("Turn off light in cmd_dof: %s", str(command))
 
         # execute the TurnLightOff action through the Bond bridge
         if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_OFF[self._lightType]):
@@ -461,7 +461,6 @@ class NoDimLight(polyinterface.Node):
         super(NoDimLight, self).__init__(controller, primary, addr, name)
     
         # override the parent node with the bridge node (defaults to controller)
-        # Note: this is for future functionality of multiple bond bridges
         self.parent = self.controller.nodes[self.primary]
 
         if deviceID is None:
@@ -482,7 +481,7 @@ class NoDimLight(polyinterface.Node):
     # Turn on the light
     def cmd_don(self, command):
 
-        _LOGGER.debug("Turn on light in cmd_don(%s)...", str(command))
+        _LOGGER.debug("Turn on light in cmd_don: %s", str(command))
 
         # execute the TurnLightOn action through the Bond bridge
         if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_ON[self._lightType]):
@@ -496,7 +495,7 @@ class NoDimLight(polyinterface.Node):
     # Turn off the light
     def cmd_dof(self, command):
 
-        _LOGGER.debug("Turn off light in cmd_dof(%s)...", str(command))
+        _LOGGER.debug("Turn off light in cmd_dof: %s", str(command))
 
          # execute the TurnLightOff action through the Bond bridge
         if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_OFF[self._lightType]):
@@ -535,10 +534,159 @@ class NoDimLight(polyinterface.Node):
         "DFOF": cmd_dof
     }
 
-# Class for Bond Bridge
+# Node for generic device
+# Provides Power On and Off - a base for other device types
+class Generic(polyinterface.Node):
+
+    id = "GENERIC"
+    hint = [0x01, 0x04, 0x02, 0x00] # Residential/Relay/On/Off Power Switch
+    _deviceID = ""
+    
+    def __init__(self, controller, primary, addr, name, deviceID=None):
+        super(Generic, self).__init__(controller, primary, addr, name)
+    
+        # override the parent node with the bridge node (defaults to controller)
+        self.parent = self.controller.nodes[self.primary]
+
+        if deviceID is None:
+
+            # retrieve the deviceID from polyglot custom data
+            self._deviceID = controller.getCustomData(addr)
+
+        else:
+            self._deviceID = deviceID
+
+            # store instance variables in polyglot custom data
+            controller.addCustomData(addr, self._deviceID)
+
+    # Turn on device
+    def cmd_don(self, command):
+
+        _LOGGER.debug("Turn on device in cmd_don: %s", str(command))
+
+        # execute the TurnOn action through the Bond bridge
+        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_TURN_ON):
+
+           # update the state driver
+            self.setDriver("ST", 100)
+
+        else:
+            _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
+
+    # Turn off device
+    def cmd_dof(self, command):
+
+        _LOGGER.debug("Turn off device in cmd_dof()...")
+
+         # execute the TurnOff action through the Bond bridge
+        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_TURN_OFF):
+
+            # update the state drvier
+            self.setDriver("ST", 0)
+
+        else:
+            _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
+
+    def updateState(self, forceReport=False):
+        
+        _LOGGER.debug("Update device driver values in updateState()...")
+        
+        # check the device state for the device on the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+
+        if respData:
+
+            state = int(respData["power"]) * 100
+
+            # Update the node states
+            self.setDriver("ST", state, True, forceReport)
+
+        else:
+            
+            _LOGGER.warning("Call to getDeviceState() failed in updateState().")
+
+    drivers = [
+        {"driver": "ST", "value": 0, "uom": _ISY_ON_OFF_UOM}
+    ]
+    commands = {
+        "DON": cmd_don,
+        "DOF": cmd_dof
+    }
+
+# Node for fireplace device
+# Currently just provides Power On and Off from Generic device
+# Future functionality: Add separate node for fan, add commands to control flame (Dim/Bright)
+class Fireplace(Generic):
+
+    id = "FIREPLACE" 
+   
+# Node for shades
+# Currently just provides Open and Close - does not try to parse actions and determine capabilities
+# Future functionality: Add command for go to preset level
+class Shade(Generic):
+
+    id = "SHADE" 
+    hint = [0x01, 0x04, 0x05, 0x00] # Residential/Relay/Open/Close Valve
+    
+  # Open shade
+    def cmd_don(self, command):
+
+        _LOGGER.debug("Open shade in cmd_don: %s", str(command))
+
+        # execute the Open action through the Bond bridge
+        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_OPEN):
+
+           # update the state driver
+            self.setDriver("ST", 100)
+
+        else:
+            _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
+
+    # Close shade
+    def cmd_dof(self, command):
+
+        _LOGGER.debug("Close shade in cmd_dof()...")
+
+         # execute the Close action through the Bond bridge
+        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_CLOSE):
+
+            # update the state drvier
+            self.setDriver("ST", 0)
+
+        else:
+            _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
+
+    def updateState(self, forceReport=False):
+        
+        _LOGGER.debug("Update shade driver values in updateState()...")
+        
+        # check the device state for the device on the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+
+        if respData:
+
+            state = int(respData["open"]) * 100
+
+            # Update the node states
+            self.setDriver("ST", state, True, forceReport)
+
+        else:
+            
+            _LOGGER.warning("Call to getDeviceState() failed in updateState().")
+
+    drivers = [
+        {"driver": "ST", "value": 0, "uom": _ISY_BARRIER_STATUS_UOM}
+    ]
+    commands = {
+        "DON": cmd_don,
+        "DOF": cmd_dof
+    }
+    
+# Class for Bond Bridge or SBB composite device
 class Bridge(polyinterface.Node):
 
     id = "BRIDGE"
+    hint = [0x01, 0x0E, 0x01, 0x00] # Residential/Gateway
     bondBridge = None
     _bridgeHostName = ""
     _bridgeToken = ""
@@ -565,7 +713,7 @@ class Bridge(polyinterface.Node):
             controller.addCustomData(addr, cData)
         
         # create an instance of the API object for the bridge with the specified hostname and token
-        self.bondBridge = BondAPI(self._bridgeHostName, self._bridgeToken, _LOGGER)
+        self.bondBridge = bondBridgeConnection(self._bridgeHostName, self._bridgeToken, _LOGGER)
 
      # Update node states for this and child nodes
     def cmd_query(self, command):
@@ -574,6 +722,150 @@ class Bridge(polyinterface.Node):
         
         # Update the node states for this bridge and force report of all driver values
         self.updateNodeStates(True)
+
+    def discoverDevices(self):
+
+        _LOGGER.debug("Discovering devices for bridge in discoverDevices()...")
+
+        # get all devices from the bridge
+        devices = self.bondBridge.getDeviceList()
+        if devices is None:
+            _LOGGER.warning("Bond bridge %s getDeviceList() returned no devices.", self.address)
+
+        else:
+
+            # iterate devices
+            for devID in devices:
+                device = devices[devID]
+
+                # if the device ID is short (e.g., sequential numbers 1, 2, 3 for SBB devices, then append bridge ID to address)
+                if len(devID) < 3:
+                    devAddr = getValidNodeAddress(self.address[-8:] + "." + devID)
+                else:
+                    devAddr = getValidNodeAddress(devID)
+                
+                _LOGGER.info("Discovered device - bridge: %s, addr: %s, name: %s, type: %s", self.address, devAddr, device["name"], device["type"])
+
+                # If no node already exists for the device address, then add a node for the device
+                if devAddr not in self.controller.nodes:
+
+                    if device["type"] == API_DEVICE_TYPE_CEILING_FAN:
+            
+                        node = CeilingFan(
+                            self.controller,
+                            self.address,
+                            devAddr,
+                            getValidNodeName(device["name"]),
+                            devID,
+                            int(API_ACTION_SET_DIRECTION in device["actions"])
+                            
+                        )
+                        self.controller.addNode(node)
+
+                        # if the ceiling fan has a down light, add a separate node for the down light
+                        if API_ACTION_TURN_DOWN_LIGHT_ON in device["actions"]:
+
+                            # add a Light node for a dimmable light, or a NoDimLight node for a non-dimmable light
+                            if API_ACTION_SET_BRIGHTNESS in device["actions"]:
+                                node = Light(
+                                    self.controller,
+                                    self.address,
+                                    devAddr + "_dlt",
+                                    getValidNodeName(device["name"] + " Down Light"),
+                                    devID,
+                                    _LIGHT_TYPE_DOWN_LIGHT,
+                                    int(API_ACTION_SET_DOWN_LIGHT_BRIGHTNESS in device["actions"])
+                                )
+                            else:
+                                node = NoDimLight(
+                                    self.controller,
+                                    self.address,
+                                    devAddr + "_dlt",
+                                    getValidNodeName(device["name"] + " Down Light"),
+                                    devID,
+                                    _LIGHT_TYPE_DOWN_LIGHT
+                                )
+                            self.controller.addNode(node)
+
+                        # if the ceiling fan has an up light, add a separate node for the up light
+                        if API_ACTION_TURN_UP_LIGHT_ON in device["actions"]:
+
+                            # add a Light node for a dimmable light, or a NoDimLight node for a non-dimmable light
+                            if API_ACTION_SET_BRIGHTNESS in device["actions"]:
+                                node = Light(
+                                    self.controller,
+                                    self.address,
+                                    devAddr + "_ult",
+                                    getValidNodeName(device["name"] + " Up Light"),
+                                    devID,
+                                    _LIGHT_TYPE_UP_LIGHT,
+                                    int(API_ACTION_SET_UP_LIGHT_BRIGHTNESS in device["actions"])
+                                )
+                            else:
+                                node = NoDimLight(
+                                    self.controller,
+                                    self.address,
+                                    devAddr + "_ult",
+                                    getValidNodeName(device["name"] + " Up Light"),
+                                    devID,
+                                    _LIGHT_TYPE_UP_LIGHT
+                                )
+                            self.controller.addNode(node)
+
+                        # if the ceiling fan has no UpDownLight and just a default light, add a separate node for the light
+                        if API_ACTION_TURN_UP_LIGHT_ON not in device["actions"] and API_ACTION_TURN_DOWN_LIGHT_ON not in device["actions"] and API_ACTION_TURN_LIGHT_ON in device["actions"]:
+
+                            # add a Light node for a dimmable light, or a NoDimLight node for a non-dimmable light
+                            if API_ACTION_SET_BRIGHTNESS in device["actions"]:
+                                node = Light(
+                                    self.controller,
+                                    self.address,
+                                    devAddr + "_lt",
+                                    getValidNodeName(device["name"] + " Light"),
+                                    devID,
+                                    _LIGHT_TYPE_DEFAULT,
+                                    int(True) 
+                                )
+                            else:
+                                node = NoDimLight(
+                                    self.controller,
+                                    self.address,
+                                    devAddr + "_lt",
+                                    getValidNodeName(device["name"] + " Light"),
+                                    devID,
+                                    _LIGHT_TYPE_DEFAULT
+                                )
+                            self.controller.addNode(node)
+
+                    elif device["type"] == API_DEVICE_TYPE_FIREPLACE:
+                        node = Fireplace(
+                            self.controller,
+                            self.address,
+                            devAddr,
+                            getValidNodeName(device["name"]),
+                            devID
+                        )
+                        self.controller.addNode(node)
+
+                    elif device["type"] == API_DEVICE_MOTORIZED_SHADES:
+                        node = Shade(
+                            self.controller,
+                            self.address,
+                            devAddr,
+                            getValidNodeName(device["name"]),
+                            devID
+                        )
+                        self.controller.addNode(node)
+
+                    elif device["type"] == API_DEVICE_GENERIC_DEVICE:
+                        node = Generic(
+                            self.controller,
+                            self.address,
+                            devAddr,
+                            getValidNodeName(device["name"]),
+                            devID
+                        )
+                        self.controller.addNode(node)
 
     # update the state of all nodes through the Bond bridge
     def updateNodeStates(self, forceReport=False):
@@ -615,12 +907,10 @@ class Controller(polyinterface.Controller):
 
     id = "CONTROLLER"
     _customData = {}
-    _hostNameList = ""
-    _tokenList = ""
 
     def __init__(self, poly):
         super(Controller, self).__init__(poly)
-        self.name = "Bond Bridge NodeServer"
+        self.name = "Bond NodeServer"
 
     # Start the nodeserver
     def start(self):
@@ -632,17 +922,6 @@ class Controller(polyinterface.Controller):
 
         # load custom data from polyglot
         self._customData = self.polyConfig["customData"]
-
-        # get Bond bridge connection info from custom configuration parameters
-        try:
-            customParams = self.polyConfig["customParams"]
-            self._hostNameList = customParams[_PARAM_HOSTNAMES]
-            self._tokenList = customParams[_PARAM_TOKENS]
-        except KeyError:
-            _LOGGER.error("Missing hostname(s) and/or token(s) in configuration.")
-            self.addNotice("Please add 'hostname' and 'token' parameter values to the Custom Configuration Parameters and restart this nodeserver.")
-            #self.poly.stop() # shutdown the nodeserver
-            raise
             
         # load nodes previously saved to the polyglot database
         # Note: has to be done in two passes to ensure Bridge (primary/parent) nodes exist
@@ -669,9 +948,18 @@ class Controller(polyinterface.Controller):
                     self.addNode(NoDimLight(self, node["primary"], addr, node["name"]))
                 elif node["node_def_id"] == "LIGHT":
                     self.addNode(Light(self, node["primary"], addr, node["name"]))
+                elif node["node_def_id"] == "SHADE":
+                    self.addNode(Shade(self, node["primary"], addr, node["name"]))
+                elif node["node_def_id"] == "FIREPLACE":
+                    self.addNode(Fireplace(self, node["primary"], addr, node["name"]))
+                elif node["node_def_id"] == "GENERIC":
+                    self.addNode(Generic(self, node["primary"], addr, node["name"]))
 
         # Set the nodeserver status flag to indicate nodeserver is running
         self.setDriver("ST", 1, True, True)
+
+        # Set the log level to the currently set log level
+        self.setDriver("GV20", _LOGGER.level, True, True)
  
         # update the driver values of all nodes (force report)
         self.updateNodeStates(True)
@@ -686,9 +974,23 @@ class Controller(polyinterface.Controller):
     # Update the profile on the ISY
     def cmd_updateProfile(self, command):
 
-        _LOGGER.debug("Install profile in cmd_update_profile()...")
+        _LOGGER.debug("Install profile in cmd_updateProfile()...")
         
         self.poly.installprofile()
+        
+    # Update the profile on the ISY
+    def cmd_setLogLevel(self, command):
+
+        _LOGGER.debug("Set logging level in cmd_setLogLevel(): %s", str(command))
+
+        # retrieve the parameter value for the command
+        value = int(command.get("value"))
+ 
+        # set the current logging level
+        _LOGGER.setLevel(value)
+
+        # update the state driver to the level set
+        self.setDriver("GV20", value)
         
     # called every longPoll seconds (default 30)
     def longPoll(self):
@@ -713,42 +1015,121 @@ class Controller(polyinterface.Controller):
         # return data from custom data for key
         return self._customData[key]
 
-    # discover bridges and controlled devices and build nodes
+    # discover bridges and SBB devices
     def discover(self):
 
-        # iterate through bridges in controller's hostname list
-        # Note: to be replaced with some kind of Bond Bridge discovery routine (but have to be on the same LAN)
-        hosts = self._hostNameList.split(";")
-        for host in hosts:
+        self.removeNoticesAll()
 
-            # get the corresponding token
-            token = self._tokenList.split(";")[hosts.index(host)]
+        # create an empty array for the bridge list
+        bridges = []
+    
+        # Check to see if host(s) and token(s) were specified in custom custom configuration parameters
+        customParams = self.polyConfig["customParams"]
+        if _PARAM_HOSTNAMES in customParams:
+            
+            # get lists of hosts and tokens from custom parameters
+            hostNameList = customParams[_PARAM_HOSTNAMES]
 
-            # create a temporary API objet to communicate with the Bond Bridge
-            tmpAPI = BondAPI(host, token, _LOGGER)
+            # iterate through bridges in controller's hostname list and build an array of bridges
+            hosts = hostNameList.split(";")
+            for host in hosts:
 
-            # ping the Bond Bridge to see if it is alive and get bridge info
-            respData = tmpAPI.getBridgeInfo()
-            _LOGGER.debug("getBridgeInfo Response Data: %s", respData)
-            if respData:
+                bridges.append({"hostname": host})
 
-                _LOGGER.debug("Connected to bridge - hostname: %s", host)
+                # if tokens are provided, get the corresponding token
+                if _PARAM_TOKENS in customParams:
+                
+                    # get the corresponding token
+                    tokenList = customParams[_PARAM_TOKENS]
+                    token = tokenList.split(";")[hosts.index(host)]
 
-                # Older firmware may not return the bondid property, so account for that
-                if "bondid" in respData:
-                    bridgeID = respData["bondid"]
+                    # add the token to the just appended bridge item
+                    bridges[-1]["token"] = token
+
+            dynamicDiscovery = False
+
+        else:
+
+            # Discover Bond Bridges and SBB devices using mDNS
+            bridges.extend(bondDiscoverBridges(5, _LOGGER))
+
+            dynamicDiscovery = True
+
+        # Process each discovered or specified bridge or SBB device
+        for bridge in bridges:
+
+            # better chance for success using IP address
+            if "ipaddress" in bridge:
+                host = bridge["ipaddress"]
+            else:
+                host = bridge["hostname"]
+
+            # check for token
+            if "token" in bridge:
+
+                token = bridge["token"]
+
+            else:
+
+                # get token for host
+                token = bondGetBridgeToken(host, _LOGGER)
+
+                # check the returned token
+                if token == API_TOKEN_FAILED: # general failure
+
+                    # Log a warning and add a notice to Polyglot dashboard
+                    _LOGGER.warning("Unable to connect to specified hostname %s", host)
+                    self.addNotice("Unable to connect to Bond bridge at hostname {}. Please check the 'hostname' parameter value in the Custom Configuration Parameters and/or that the Bond bridge or device is reachable on your network from you Polyglot server before retrying.".format(host))
+
+                    # move to the next bridge
+                    continue
+
+                elif token == API_TOKEN_LOCKED: # bond bridge locked
+
+                    # Log a warning and add a notice to Polyglot dashboard
+                    _LOGGER.warning("Token locked on bridge at hostname %s", host)
+                    self.addNotice("Bond bridge or device at hostname {} is locked. Please unlock the Bond bridge or device before executing the Discover Devices command.".format(host))
+
+                    # move to the next bridge
+                    continue
+
+            # get info for the bridge
+            bridgeInfo = bondGetBridgeInfo(host, token, _LOGGER)
+
+            # check the returned token
+            if bridgeInfo == API_BRIDGE_INFO_FAILED: # general failure
+
+                # Log a warning and add a notice to Polyglot dashboard
+                _LOGGER.warning("Unable to connect to specified hostname %s", host)
+                if dynamicDiscovery:
+                    self.addNotice("Unable to connect to Bond bridge at hostname {} retrieved from mDNS. Please check that the Bond bridge or device is reachable on your network from your Polyglot server.".format(host))
                 else:
-                    # use the last 8 characters from the token - should be unique enough for temporary ID
-                    bridgeID = token[-8:]
+                    self.addNotice("Unable to connect to Bond bridge at hostname {}. Please check the 'hostname' parameter value in the Custom Configuration Parameters and restart this nodeserver.".format(host))
 
-                # The name may also be missing
-                if "name" in respData:
-                    bridgeName = respData["name"]
+                # move to the next bridge
+                continue
+
+            elif bridgeInfo == API_BRIDGE_INFO_BAD_TOKEN: # bond bridge locked
+
+                # Log a warning and add a notice to Polyglot dashboard
+                _LOGGER.warning("Aunthentication error (bad token) for bridge at hostname %s", host)
+                if dynamicDiscovery:
+                    self.addNotice("Unable to authenticate with the Bond bridge at hostname {} using the retrieved token. Consider specifying the hostname and token manually through Custom Configuration Parameters and try discovery again.".format(host))
                 else:
-                    # set the name to the bridge ID
-                    bridgeName = bridgeID
+                    self.addNotice("Unable to authenticate with the Bond bridge at hostname {} using the supplied token. Please check the corresponding 'token' parameter value in the Custom Configuration Parameters and restart this nodeserver.".format(host))
 
-                # check to see if a bridge node already exists
+                # move to the next bridge
+                continue
+
+            else:
+
+                # Older firmware may not return the bondid property, so use the one in the bridge list (or the last eight of the token)
+                bridgeID = bridgeInfo.get("bondid", bridge.get("bondid", token[-8:]))
+
+                # If the name is missing, just use the bridgeID
+                bridgeName = bridgeInfo.get("name", bridgeID)
+
+                # check to see if a bridge node already exists for the bridge
                 bridgeAddr = getValidNodeAddress(bridgeID)
                 if bridgeAddr not in self.nodes:
 
@@ -758,131 +1139,9 @@ class Controller(polyinterface.Controller):
                     
                 else:
                     bridge = self.nodes[bridgeAddr]
-                
-                # get devices from the bridge (just use the temporary API object)
-                devices = tmpAPI.getDeviceList()
-                if devices is None:
-                    _LOGGER.warning("Bond bridge %s getDeviceList() returned no devices.", bridge.address)
 
-                else:
-
-                    # iterate devices
-                    for devID in devices:
-                        device = devices[devID]
-                        devAddr = getValidNodeAddress(devID)
-                        _LOGGER.debug("Discovered device - bridge: %s, addr: %s, name: %s, type: %s", bridge.address, devAddr, device["name"], device["type"])
-
-                        if device["type"] == API_DEVICE_TYPE_CEILING_FAN:
-                            
-                            # If no node already exists for the device, then add a node for the device
-                            if devAddr not in self.nodes:
-                        
-                                node = CeilingFan(
-                                    self,
-                                    bridge.address,
-                                    devAddr,
-                                    getValidNodeName(device["name"]),
-                                    devID,
-                                    int(API_ACTION_SET_DIRECTION in device["actions"])
-                                    
-                                )
-                                self.addNode(node)
-
-                                # if the ceiling fan has a down light, add a separate node for the down light
-                                if API_ACTION_TURN_DOWN_LIGHT_ON in device["actions"]:
-
-                                    # add a Light node for a dimmable light, or a NoDimLight node for a non-dimmable light
-                                    if API_ACTION_SET_BRIGHTNESS in device["actions"]:
-                                        node = Light(
-                                            self,
-                                            bridge.address,
-                                            devAddr + "_dnlt",
-                                            getValidNodeName(device["name"] + " Down Light"),
-                                            devID,
-                                            _LIGHT_TYPE_DOWN_LIGHT,
-                                            int(API_ACTION_SET_DOWN_LIGHT_BRIGHTNESS in device["actions"])
-                                        )
-                                    else:
-                                        node = NoDimLight(
-                                            self,
-                                            bridge.address,
-                                            devAddr + "_dnlt",
-                                            getValidNodeName(device["name"] + " Down Light"),
-                                            devID,
-                                            _LIGHT_TYPE_DOWN_LIGHT
-                                        )
-                                    self.addNode(node)
-
-                                # if the ceiling fan has an up light, add a separate node for the up light
-                                if API_ACTION_TURN_UP_LIGHT_ON in device["actions"]:
-
-                                    # add a Light node for a dimmable light, or a NoDimLight node for a non-dimmable light
-                                    if API_ACTION_SET_BRIGHTNESS in device["actions"]:
-                                        node = Light(
-                                            self,
-                                            bridge.address,
-                                            devAddr + "_uplt",
-                                            getValidNodeName(device["name"] + " Up Light"),
-                                            devID,
-                                            _LIGHT_TYPE_UP_LIGHT,
-                                            int(API_ACTION_SET_UP_LIGHT_BRIGHTNESS in device["actions"])
-                                        )
-                                    else:
-                                        node = NoDimLight(
-                                            self,
-                                            bridge.address,
-                                            devAddr + "_uplt",
-                                            getValidNodeName(device["name"] + " Up Light"),
-                                            devID,
-                                            _LIGHT_TYPE_UP_LIGHT
-                                        )
-                                    self.addNode(node)
-
-                                # if the ceiling fan has no UpDownLight and just a default light, add a separate node for the light
-                                if API_ACTION_TURN_UP_LIGHT_ON not in device["actions"] and API_ACTION_TURN_DOWN_LIGHT_ON not in device["actions"] and API_ACTION_TURN_LIGHT_ON in device["actions"]:
-
-                                    # add a Light node for a dimmable light, or a NoDimLight node for a non-dimmable light
-                                    if API_ACTION_SET_BRIGHTNESS in device["actions"]:
-                                        node = Light(
-                                            self,
-                                            bridge.address,
-                                            devAddr + "_lt",
-                                            getValidNodeName(device["name"] + " Light"),
-                                            devID,
-                                            _LIGHT_TYPE_DEFAULT,
-                                            int(True) 
-                                        )
-                                    else:
-                                        node = NoDimLight(
-                                            self,
-                                            bridge.address,
-                                            devAddr + "_lt",
-                                            getValidNodeName(device["name"] + " Light"),
-                                            devID,
-                                            _LIGHT_TYPE_DEFAULT
-                                        )
-                                    self.addNode(node)
-
-                        elif device["type"] == API_DEVICE_TYPE_FIREPLACE:
-                            # future functionality
-                            pass
-
-                        elif device["type"] == API_DEVICE_MOTORIZED_SHADES:
-                            # future functionality
-                            pass
-
-                        elif device["type"] == API_DEVICE_GENERIC_DEVICE:
-                            # future functionality
-                            pass
-
-            else:
-                _LOGGER.warning("Unable to connect to specified Bond bridge at hostname %s", host)
-
-                # Add a notice to Polyglot dashboard
-                self.addNotice("Unable to connect to Bond bridge at hostname {}. Please check the 'hostname' and 'token' parameter values in the Custom Configuration Parameters and restart this nodeserver.".format(host))
-
-            # close the resources in the temp bridge connection (prevents resource warnings)
-            tmpAPI.close()
+                # perform device discovery for the bridge node
+                bridge.discoverDevices()
 
         # send custom data added by new nodes to polyglot
         self.saveCustomData(self._customData)
@@ -905,11 +1164,13 @@ class Controller(polyinterface.Controller):
                     node.updateNodeStates(forceReport)
 
     drivers = [
-        {"driver": "ST", "value": 0, "uom": _ISY_BOOL_UOM}
+        {"driver": "ST", "value": 0, "uom": _ISY_BOOL_UOM},
+        {"driver": "GV20", "value": 0, "uom": _ISY_INDEX_UOM}
     ]
     commands = {
         "DISCOVER": cmd_discover,
-        "UPDATE_PROFILE" : cmd_updateProfile
+        "UPDATE_PROFILE" : cmd_updateProfile,
+        "SET_LOGLEVEL": cmd_setLogLevel
     }
 
 # Removes invalid charaters and lowercase ISY Node address
@@ -918,7 +1179,7 @@ def getValidNodeAddress(s):
     # remove <>`~!@#$%^&*(){}[]?/\;:"' characters
     addr = re.sub(r"[<>`~!@#$%^&*(){}[\]?/\\;:\"']+", "", s)
 
-    # return lowercase address
+
     return addr[:14].lower()
 
 # Removes invalid charaters for ISY Node description

@@ -3,12 +3,16 @@
     <editors />
     <sts>
       <st id="ST" editor="CTR_BOOL" />
+      <st id="GV20" editor="CTR_LOGLEVEL" />
     </sts>
     <cmds>
       <sends />
       <accepts>
         <cmd id="DISCOVER" />
         <cmd id="UPDATE_PROFILE" />
+        <cmd id="SET_LOGLEVEL">
+          <p id="" editor="CTR_LOGLEVEL" init="GV20" />
+        </cmd>          
       </accepts>
     </cmds>
   </nodeDef>
@@ -79,6 +83,45 @@
         <cmd id="DOF" />
         <cmd id="DFON" />
         <cmd id="DFOF" />        
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="SHADE" nls="SHD">
+    <editors />
+    <sts>
+      <st id="ST" editor="SHD_ST" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DON" />
+        <cmd id="DOF" />
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="FIREPLACE" nls="FPL">
+    <editors />
+    <sts>
+      <st id="ST" editor="FPL_ST" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DON" />
+        <cmd id="DOF" />
+      </accepts>
+    </cmds>
+  </nodeDef>
+  <nodeDef id="GENERIC" nls="GNR">
+    <editors />
+    <sts>
+      <st id="ST" editor="GNR_ST" />
+    </sts>
+    <cmds>
+      <sends />
+      <accepts>
+        <cmd id="DON" />
+        <cmd id="DOF" />
       </accepts>
     </cmds>
   </nodeDef>

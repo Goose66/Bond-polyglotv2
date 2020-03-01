@@ -677,7 +677,11 @@ class Shade(Generic):
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_BARRIER_STATUS_UOM}
     ]
-
+    commands = {
+        "DON": cmd_don,
+        "DOF": cmd_dof
+    }
+    
 # Class for Bond Bridge or SBB composite device
 class Bridge(polyinterface.Node):
 

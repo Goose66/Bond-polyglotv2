@@ -142,7 +142,7 @@ class bondBridgeConnection(object):
         path = api["path"].format(device_id = deviceID, action_id = action) 
 
         # uncomment the next line to dump HTTP request data to log file for debugging
-        #self._loggerdebug("HTTP %s data: %s", method + " " + path, payload)
+        self._logger.debug("HTTP %s data: %s", method + " " + path, payload)
 
         try:
             response = self._bridgeSession.request(method,
@@ -168,7 +168,7 @@ class bondBridgeConnection(object):
             raise
 
         # uncomment the next line to dump HTTP response to log file for debugging
-        #self._loggerdebug("HTTP response code: %d data: %s", response.status_code, response.text)
+        self._logger.debug("HTTP response code: %d data: %s", response.status_code, response.text)
 
         return response
 

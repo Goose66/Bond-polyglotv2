@@ -740,7 +740,7 @@ class Bridge(polyinterface.Node):
 
                 # if the device ID is short (e.g., sequential numbers 1, 2, 3 for SBB devices, then append bridge ID to address)
                 if len(devID) < 3:
-                    devAddr = getValidNodeAddress(self.address[-8:] + "." + devID)
+                    devAddr = getValidNodeAddress(self.address[-8:] + "_" + devID)
                 else:
                     devAddr = getValidNodeAddress(devID)
                 
@@ -1177,7 +1177,7 @@ class Controller(polyinterface.Controller):
 def getValidNodeAddress(s):
 
     # remove <>`~!@#$%^&*(){}[]?/\;:"' characters
-    addr = re.sub(r"[<>`~!@#$%^&*(){}[\]?/\\;:\"']+", "", s)
+    addr = re.sub(r"[.<>`~!@#$%^&*(){}[\]?/\\;:\"']+", "", s)
 
 
     return addr[:14].lower()

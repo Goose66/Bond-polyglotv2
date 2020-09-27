@@ -49,7 +49,7 @@ class CeilingFan(polyinterface.Node):
 
     id = "CEILING_FAN"
     hint = [0x01, 0x02, 0x01, 0x00] # Residential/Controller/Class A Motor Controller
-    _deviceID = ""
+    deviceID = ""
     _maxSpeed = 0
     _hasDirection = 0
     
@@ -63,20 +63,20 @@ class CeilingFan(polyinterface.Node):
 
             # retrieve the deviceID and the maxSpeed from polyglot custom data
             cData = controller.getCustomData(addr).split(";")
-            self._deviceID = cData[0]
+            self.deviceID = cData[0]
             self._maxSpeed = int(cData[1])
             self._hasDirection = int(cData[2])
 
         else:
-            self._deviceID = deviceID
+            self.deviceID = deviceID
 
             # get the properties of the fan
-            respData = self.parent.bondBridge.getDeviceProperties(self._deviceID)
+            respData = self.parent.bondBridge.getDeviceProperties(self.deviceID)
             self._maxSpeed = respData["max_speed"]
             self._hasDirection = hasDirection
 
             # store instance variables in polyglot custom data
-            cData = ";".join([self._deviceID, str(self._maxSpeed), str(self._hasDirection)])
+            cData = ";".join([self.deviceID, str(self._maxSpeed), str(self._hasDirection)])
             controller.addCustomData(addr, cData)
 
     # Turn on the fan
@@ -94,27 +94,33 @@ class CeilingFan(polyinterface.Node):
             speed = self.computeFanSpeed(value, self._maxSpeed)
 
             # Set the speed value for the fan (this turns the power on)
-            if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_SET_SPEED, speed):
+            if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_SET_SPEED, speed):
         
+                # Let BPUP process the state change
+                pass
+
                 # update state driver from the speed
-                self.setDriver("ST", value)
+                #self.setDriver("ST", value)
 
             else:
                 _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
 
         else:
             # execute the TurnOn action through the Bond bridge (to the previous speed)
-            if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_TURN_ON):
+            if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_TURN_ON):
+
+                # Let BPUP process the state change
+                pass
 
                 # Wait for some time before getting state to avoid errors
-                time.sleep(_DELAY_AFTER_ACTION)
+                #time.sleep(_DELAY_AFTER_ACTION)
 
                 # Get current speed
-                respData = self.parent.bondBridge.getDeviceState(self._deviceID)
-                state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
+                #respData = self.parent.bondBridge.getDeviceState(self.deviceID)
+                #state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
     
                 # update the state driver
-                self.setDriver("ST", state)
+                #self.setDriver("ST", state)
 
             else:
                 _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
@@ -125,10 +131,13 @@ class CeilingFan(polyinterface.Node):
         _LOGGER.debug("Turn off fan in cmd_dof()...")
 
         # execute the TurnOff action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_TURN_OFF):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_TURN_OFF):
+
+            # Let BPUP process the state change
+            pass
 
             # update the state drvier
-            self.setDriver("ST", 0)
+            #self.setDriver("ST", 0)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
@@ -139,17 +148,20 @@ class CeilingFan(polyinterface.Node):
         _LOGGER.debug("Increase fan speed cmd_increase_speed()...")
 
         # execute the IncreaseSpeed action (by 1 speed) through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_INCREASE_SPEED, 1):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_INCREASE_SPEED, 1):
+
+            # Let BPUP process the state change
+            pass
 
             # Wait for some time before getting state to avoid errors
-            time.sleep(_DELAY_AFTER_ACTION)
+            #time.sleep(_DELAY_AFTER_ACTION)
 
             # Get current speed
-            respData = self.parent.bondBridge.getDeviceState(self._deviceID)
-            state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
+            #respData = self.parent.bondBridge.getDeviceState(self.deviceID)
+            #state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
     
             # update the state driver
-            self.setDriver("ST", state)
+            #self.setDriver("ST", state)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in BRT command handler.")
@@ -160,17 +172,20 @@ class CeilingFan(polyinterface.Node):
         _LOGGER.debug("Decrease fan speed cmd_decrease_speed()...")
 
         # execute the DecreaseSpeed action (by 1 speed) through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_DECREASE_SPEED, 1):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_DECREASE_SPEED, 1):
+
+            # Let BPUP process the state change
+            pass
 
             # Wait for some time before getting state to avoid errors
-            time.sleep(_DELAY_AFTER_ACTION)
+            #time.sleep(_DELAY_AFTER_ACTION)
 
             # Get current speed
-            respData = self.parent.bondBridge.getDeviceState(self._deviceID)
-            state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
+            #respData = self.parent.bondBridge.getDeviceState(self.deviceID)
+            #state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
     
             # update the state driver
-            self.setDriver("ST", state)
+            #self.setDriver("ST", state)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DIM command handler.")
@@ -189,14 +204,17 @@ class CeilingFan(polyinterface.Node):
             speed = self._maxSpeed
         
         # Set the speed value for the fan (this turns the power on)
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_SET_SPEED, speed):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_SET_SPEED, speed):
         
+            # Let BPUP process the state change
+            pass
+
             # Wait for some time before getting state to avoid errors
-            time.sleep(_DELAY_AFTER_ACTION)
+            #time.sleep(_DELAY_AFTER_ACTION)
 
             # update state driver from the speed
-            state = self.computePercentSpeed(speed, self._maxSpeed)
-            self.setDriver("ST", state)
+            #state = self.computePercentSpeed(speed, self._maxSpeed)
+            #self.setDriver("ST", state)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in SET_SPEED command handler.")
@@ -222,43 +240,51 @@ class CeilingFan(polyinterface.Node):
                     direction = 1
 
                 # execute the SetDirection action through the Bond bridge
-                if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_SET_DIRECTION, direction):
+                if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_SET_DIRECTION, direction):
                 
+                    # Let BPUP process the state change
+                    pass
+                    
                     # update the state drvier
-                    self.setDriver("GV0", value)
+                    #self.setDriver("GV0", value)
 
                 else:
                     _LOGGER.warning("Call to exceDeviceAction() failed in SET_DIRECTION command handler.")
 
+    # Call the API to update state values
     def updateState(self, forceReport=False):
         
         _LOGGER.debug("Update fan driver values in updateState...")
 
-        # check the fan status for the device on the Bond bridge
-        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+        # retrieve the state data for the device from the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self.deviceID)
 
         if respData:
 
-            if respData["power"] == 0:
-                state = 0
-            else:
-                state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
-
-            if "direction" not in respData:
-                direction = _IX_CFM_DIR_NA
-            elif respData["direction"] == -1:
-                direction = _IX_CFM_DIR_REVERSE
-            else:
-                direction = _IX_CFM_DIR_FORWARD
-
-            # Update the fan node node states
-            self.setDriver("ST", state, True, forceReport)
-            self.setDriver("GV0", direction, True, forceReport)
+            self.setDrivers(respData, forceReport)
 
         else:
             
-            _LOGGER.warning("Call to getDeviceState() failed in updateState.")
+            _LOGGER.warning("Call to getDeviceState() for fan failed in updateState.")
 
+    # Set the node driver values from the state data
+    def setDrivers(self, respData, forceReport):
+
+        if respData["power"] == 0:
+            state = 0
+        else:
+            state = self.computePercentSpeed(respData["speed"], self._maxSpeed)
+
+        if "direction" not in respData:
+            direction = _IX_CFM_DIR_NA
+        elif respData["direction"] == -1:
+            direction = _IX_CFM_DIR_REVERSE
+        else:
+            direction = _IX_CFM_DIR_FORWARD
+
+        # Update the fan node node states
+        self.setDriver("ST", state, True, forceReport)
+        self.setDriver("GV0", direction, True, forceReport)
 
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_PERCENT_UOM},
@@ -288,7 +314,7 @@ class Light(polyinterface.Node):
 
     id = "LIGHT"
     hint = [0x01, 0x02, 0x09, 0x00] # Residential/Controller/Dimmer
-    _deviceID = ""
+    deviceID = ""
     _lightType = 0
     _hasOwnBrightness = 0
     
@@ -302,17 +328,17 @@ class Light(polyinterface.Node):
 
             # retrieve the deviceID from polyglot custom data
             cData = controller.getCustomData(addr).split(";")
-            self._deviceID = cData[0]
+            self.deviceID = cData[0]
             self._lightType = int(cData[1])
             self._hasOwnBrightness = int(cData[2])
 
         else:
-            self._deviceID = deviceID
+            self.deviceID = deviceID
             self._lightType = lightType
             self._hasOwnBrightness = hasOwnBrightness
 
             # store instance variables in polyglot custom data
-            cData = ";".join([self._deviceID, str(self._lightType), str(self._hasOwnBrightness)])
+            cData = ";".join([self.deviceID, str(self._lightType), str(self._hasOwnBrightness)])
             controller.addCustomData(addr, cData)
 
     # Turn on the light
@@ -332,10 +358,13 @@ class Light(polyinterface.Node):
             else:
                 action = _LIGHT_ACTION_SET_BRIGHTNESS[_LIGHT_TYPE_DEFAULT]
 
-            if self.parent.bondBridge.execDeviceAction(self._deviceID, action, value):
+            if self.parent.bondBridge.execDeviceAction(self.deviceID, action, value):
         
+                # Let BPUP process the state change
+                pass
+                
                 # update state driver to the brightness set
-                self.setDriver("ST", value)
+                #self.setDriver("ST", value)
 
             else:
                 _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
@@ -343,13 +372,16 @@ class Light(polyinterface.Node):
         else:
 
             # execute the TurnOn action through the Bond bridge (to the previous brightness)
-            if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_ON[self._lightType]):
+            if self.parent.bondBridge.execDeviceAction(self.deviceID, _LIGHT_ACTION_ON[self._lightType]):
 
+                # Let BPUP process the state change
+                pass
+                
                 # Wait for some time before getting state to avoid errors
-                time.sleep(_DELAY_AFTER_ACTION)
+                #time.sleep(_DELAY_AFTER_ACTION)
 
                 # update the node state
-                self.updateState()
+                #self.updateState()
 
             else:
                 _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
@@ -361,10 +393,13 @@ class Light(polyinterface.Node):
         _LOGGER.debug("Turn off light in cmd_dof: %s", str(command))
 
         # execute the TurnLightOff action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_OFF[self._lightType]):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, _LIGHT_ACTION_OFF[self._lightType]):
 
+            # Let BPUP process the state change
+            pass
+                
             # update the state drvier
-            self.setDriver("ST", 0)
+            #self.setDriver("ST", 0)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
@@ -381,13 +416,16 @@ class Light(polyinterface.Node):
             action = _LIGHT_ACTION_INC_BRIGHTNESS[_LIGHT_TYPE_DEFAULT]
 
         # execute the IncreaseBrightness action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, action, 15):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, action, 15):
 
+            # Let BPUP process the state change
+            pass
+                
             # Wait for some time before getting state to avoid errors
-            time.sleep(_DELAY_AFTER_ACTION)
+            #time.sleep(_DELAY_AFTER_ACTION)
 
             # update the node state
-            self.updateState()
+            #self.updateState()
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in BRT command handler.")
@@ -404,13 +442,16 @@ class Light(polyinterface.Node):
             action = _LIGHT_ACTION_DEC_BRIGHTNESS[_LIGHT_TYPE_DEFAULT]
 
         # execute the DecreaseBrightness action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, action, 15):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, action, 15):
 
+            # Let BPUP process the state change
+            pass
+                
             # Wait for some time before getting state to avoid errors
-            time.sleep(_DELAY_AFTER_ACTION)
+            #time.sleep(_DELAY_AFTER_ACTION)
 
             # update the node state
-            self.updateState()
+            #self.updateState()
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DIM command handler.")
@@ -419,23 +460,28 @@ class Light(polyinterface.Node):
         
         _LOGGER.debug("Update light driver values in updateState...")
         
-        # check the light state for the device on the Bond bridge
-        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+        # retrieve the state data for the device from the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self.deviceID)
 
         if respData:
-
-            if respData[_LIGHT_STATE_POWER] == 0 or respData[_LIGHT_STATE_ENABLED[self._lightType]] == 0:
-                state = 0
-            elif _LIGHT_STATE_BRIGHTNESS[self._lightType] in respData:
-                state = int(respData[_LIGHT_STATE_BRIGHTNESS[self._lightType]])
-            else:
-                state = int(respData[_LIGHT_STATE_BRIGHTNESS[_LIGHT_TYPE_DEFAULT]])
-
-            # Update the node states
-            self.setDriver("ST", state, True, forceReport)
+            self.setDrivers(respData, forceReport)
 
         else:
-            _LOGGER.warning("Call to getDeviceState() failed in updateState.")
+            
+            _LOGGER.warning("Call to getDeviceState() for light failed in updateState.")
+
+    # Set the node driver values from the state data
+    def setDrivers(self, respData, forceReport):
+            
+        if respData[_LIGHT_STATE_POWER] == 0 or respData[_LIGHT_STATE_ENABLED[self._lightType]] == 0:
+            state = 0
+        elif _LIGHT_STATE_BRIGHTNESS[self._lightType] in respData:
+            state = int(respData[_LIGHT_STATE_BRIGHTNESS[self._lightType]])
+        else:
+            state = int(respData[_LIGHT_STATE_BRIGHTNESS[_LIGHT_TYPE_DEFAULT]])
+
+        # Update the node states
+        self.setDriver("ST", state, True, forceReport)
 
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_PERCENT_UOM}
@@ -454,7 +500,7 @@ class NoDimLight(polyinterface.Node):
 
     id = "NODIM_LIGHT" 
     hint = [0x01, 0x02, 0x10, 0x00] # Residential/Controller/Non-Dimming Light
-    _deviceID = ""
+    deviceID = ""
     _lightType = 0
     
     def __init__(self, controller, primary, addr, name, deviceID=None, lightType=_LIGHT_TYPE_DEFAULT):
@@ -467,15 +513,15 @@ class NoDimLight(polyinterface.Node):
 
             # retrieve the deviceID from polyglot custom data
             cData = controller.getCustomData(addr).split(";")
-            self._deviceID = cData[0]
+            self.deviceID = cData[0]
             self._lightType = int(cData[1])
 
         else:
-            self._deviceID = deviceID
+            self.deviceID = deviceID
             self._lightType = lightType
 
             # store instance variables in polyglot custom data
-            cData = ";".join([self._deviceID, str(self._lightType)])
+            cData = ";".join([self.deviceID, str(self._lightType)])
             controller.addCustomData(addr, cData)
 
     # Turn on the light
@@ -484,10 +530,13 @@ class NoDimLight(polyinterface.Node):
         _LOGGER.debug("Turn on light in cmd_don: %s", str(command))
 
         # execute the TurnLightOn action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_ON[self._lightType]):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, _LIGHT_ACTION_ON[self._lightType]):
 
-           # update the state driver
-            self.setDriver("ST", 100)
+            # Let BPUP process the state change
+            pass
+                
+            # update the state driver
+            #self.setDriver("ST", 100)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
@@ -498,10 +547,13 @@ class NoDimLight(polyinterface.Node):
         _LOGGER.debug("Turn off light in cmd_dof: %s", str(command))
 
          # execute the TurnLightOff action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, _LIGHT_ACTION_OFF[self._lightType]):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, _LIGHT_ACTION_OFF[self._lightType]):
 
+            # Let BPUP process the state change
+            pass
+                
             # update the state drvier
-            self.setDriver("ST", 0)
+            #self.setDriver("ST", 0)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
@@ -510,19 +562,23 @@ class NoDimLight(polyinterface.Node):
         
         _LOGGER.debug("Update light driver values in updateState...")
         
-        # check the light state for the device on the Bond bridge
-        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+        # retrieve the state data for the device from the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self.deviceID)
 
         if respData:
-
-            state = int(respData[_LIGHT_STATE_POWER] and respData[_LIGHT_STATE_ENABLED[self._lightType]]) * 100
-
-            # Update the node states
-            self.setDriver("ST", state, True, forceReport)
+            self.setDrivers(respData, forceReport)
 
         else:
             
-            _LOGGER.warning("Call to getDeviceState() failed in updateState.")
+            _LOGGER.warning("Call to getDeviceState() for light failed in updateState.")
+
+    # Set the node driver values from the state data
+    def setDrivers(self, respData, forceReport):
+            
+        state = int(respData[_LIGHT_STATE_POWER] and respData[_LIGHT_STATE_ENABLED[self._lightType]]) * 100
+
+        # Update the node states
+        self.setDriver("ST", state, True, forceReport)
 
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_ON_OFF_UOM}
@@ -540,7 +596,7 @@ class Generic(polyinterface.Node):
 
     id = "GENERIC"
     hint = [0x01, 0x04, 0x02, 0x00] # Residential/Relay/On/Off Power Switch
-    _deviceID = ""
+    deviceID = ""
     
     def __init__(self, controller, primary, addr, name, deviceID=None):
         super(Generic, self).__init__(controller, primary, addr, name)
@@ -551,13 +607,13 @@ class Generic(polyinterface.Node):
         if deviceID is None:
 
             # retrieve the deviceID from polyglot custom data
-            self._deviceID = controller.getCustomData(addr)
+            self.deviceID = controller.getCustomData(addr)
 
         else:
-            self._deviceID = deviceID
+            self.deviceID = deviceID
 
             # store instance variables in polyglot custom data
-            controller.addCustomData(addr, self._deviceID)
+            controller.addCustomData(addr, self.deviceID)
 
     # Turn on device
     def cmd_don(self, command):
@@ -565,10 +621,13 @@ class Generic(polyinterface.Node):
         _LOGGER.debug("Turn on device in cmd_don: %s", str(command))
 
         # execute the TurnOn action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_TURN_ON):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_TURN_ON):
 
-           # update the state driver
-            self.setDriver("ST", 100)
+            # Let BPUP process the state change
+            pass
+
+            # update the state driver
+            #self.setDriver("ST", 100)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
@@ -579,10 +638,13 @@ class Generic(polyinterface.Node):
         _LOGGER.debug("Turn off device in cmd_dof()...")
 
          # execute the TurnOff action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_TURN_OFF):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_TURN_OFF):
+
+            # Let BPUP process the state change
+            pass
 
             # update the state drvier
-            self.setDriver("ST", 0)
+            #self.setDriver("ST", 0)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
@@ -591,19 +653,23 @@ class Generic(polyinterface.Node):
         
         _LOGGER.debug("Update device driver values in updateState()...")
         
-        # check the device state for the device on the Bond bridge
-        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+        # retrieve the device state from the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self.deviceID)
 
         if respData:
-
-            state = int(respData["power"]) * 100
-
-            # Update the node states
-            self.setDriver("ST", state, True, forceReport)
+            self.setDrivers(respData, forceReport)
 
         else:
             
-            _LOGGER.warning("Call to getDeviceState() failed in updateState().")
+            _LOGGER.warning("Call to getDeviceState() for light failed in updateState.")
+
+    # Set the node driver values from the state data
+    def setDrivers(self, respData, forceReport):
+            
+        state = int(respData["power"]) * 100
+
+        # Update the node states
+        self.setDriver("ST", state, True, forceReport)
 
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_ON_OFF_UOM}
@@ -634,10 +700,13 @@ class Shade(Generic):
         _LOGGER.debug("Open shade in cmd_don: %s", str(command))
 
         # execute the Open action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_OPEN):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_OPEN):
 
-           # update the state driver
-            self.setDriver("ST", 100)
+            # Let BPUP process the state change
+            pass
+            
+            # update the state driver
+            #self.setDriver("ST", 100)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DON command handler.")
@@ -648,10 +717,13 @@ class Shade(Generic):
         _LOGGER.debug("Close shade in cmd_dof()...")
 
          # execute the Close action through the Bond bridge
-        if self.parent.bondBridge.execDeviceAction(self._deviceID, API_ACTION_CLOSE):
+        if self.parent.bondBridge.execDeviceAction(self.deviceID, API_ACTION_CLOSE):
+
+            # Let BPUP process the state change
+            pass
 
             # update the state drvier
-            self.setDriver("ST", 0)
+            #self.setDriver("ST", 0)
 
         else:
             _LOGGER.warning("Call to exceDeviceAction() failed in DOF command handler.")
@@ -660,19 +732,23 @@ class Shade(Generic):
         
         _LOGGER.debug("Update shade driver values in updateState()...")
         
-        # check the device state for the device on the Bond bridge
-        respData = self.parent.bondBridge.getDeviceState(self._deviceID)
+        # retrieve the device state from the Bond bridge
+        respData = self.parent.bondBridge.getDeviceState(self.deviceID)
 
         if respData:
-
-            state = int(respData["open"]) * 100
-
-            # Update the node states
-            self.setDriver("ST", state, True, forceReport)
+            self.setDrivers(respData, forceReport)
 
         else:
             
-            _LOGGER.warning("Call to getDeviceState() failed in updateState().")
+            _LOGGER.warning("Call to getDeviceState() for shade failed in updateState.")
+
+    # Set the node driver values from the state data
+    def setDrivers(self, respData, forceReport):
+
+        state = int(respData["open"]) * 100
+
+        # Update the node states
+        self.setDriver("ST", state, True, forceReport)
 
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_BARRIER_STATUS_UOM}
@@ -711,11 +787,24 @@ class Bridge(polyinterface.Node):
             # store instance variables in polyglot custom data
             cData = ";".join([self._bridgeHostName, self._bridgeToken])
             controller.addCustomData(addr, cData)
-        
+       
         # create an instance of the API object for the bridge with the specified hostname and token
-        self.bondBridge = bondBridgeConnection(self._bridgeHostName, self._bridgeToken, _LOGGER)
+        self.bondBridge = bondBridgeConnection(self._bridgeHostName, self._bridgeToken, stateCallback=self._BPUP_statusUpdate, logger=_LOGGER)
 
-     # Update node states for this and child nodes
+        # register the stop method for the bridge node
+        #self.controller.poly.onStop(self.stop)
+
+    # nodeserver is being shutdown
+    def stop(self):
+        
+        # shutdown the connections for the Bond bridge
+        if self.bondBridge is not None:
+            self.bondBridge.close()
+
+        # Set the bridge  status flag to indicate bridge is disconnected
+        self.setDriver("ST", 0, True, True)
+
+    # Update node states for this and child nodes
     def cmd_query(self, command):
 
         _LOGGER.debug("Updating node states for bridge in cmd_query()...")
@@ -895,6 +984,18 @@ class Bridge(polyinterface.Node):
             # Update the Bond connection driver value
             self.setDriver("ST", 0, True, forceReport)
 
+    # update the state of nodes from BPUP status messages
+    def _BPUP_statusUpdate(self, deviceID, respData):
+
+        # iterate through the nodes of the nodeserver
+        for addr in self.controller.nodes:
+    
+            # if the state data is for the device ID of the node,
+            # then update the driver values for the node from the state data
+            node = self.controller.nodes[addr] 
+            if node.id not in ("CONTROLLER", "BRIDGE") and node.deviceID == deviceID:
+                node.setDrivers(respData, False)
+
     drivers = [
         {"driver": "ST", "value": 0, "uom": _ISY_BOOL_UOM}
     ]
@@ -923,6 +1024,11 @@ class Controller(polyinterface.Controller):
         # load custom data from polyglot
         self._customData = self.polyConfig["customData"]
             
+        # If a logger level was stored for the controller, then use to set the logger level
+        level = self.getCustomData("loggerlevel")
+        if level is not None:
+            _LOGGER.setLevel(int(level))
+        
         # load nodes previously saved to the polyglot database
         # Note: has to be done in two passes to ensure Bridge (primary/parent) nodes exist
         # before device nodes
@@ -964,7 +1070,25 @@ class Controller(polyinterface.Controller):
         # update the driver values of all nodes (force report)
         self.updateNodeStates(True)
 
-    # Run discovery for Sony devices
+    # nodeserver is being shutdown
+    def stop(self):
+                           
+        # bridge nodes have registerd their own stop() methods to handle their own connections
+        # iterate through the nodes of the nodeserver
+        for addr in self.nodes:
+        
+            # ignore the controller node
+            if addr != self.address:
+
+                # if the device is a bridge node, call the nodes stop method
+                node = self.controller.nodes[addr]
+                if node.id == "BRIDGE":
+                    node.stop()
+
+        # Set the nodeserver status flag to indicate nodeserver is not running
+        self.setDriver("ST", 0, True, True)
+    
+    # Run discovery for Bond bridges and configured devices
     def cmd_discover(self, command):
 
         _LOGGER.debug("Discover devices in cmd_discover()...")
@@ -989,6 +1113,10 @@ class Controller(polyinterface.Controller):
         # set the current logging level
         _LOGGER.setLevel(value)
 
+        # store the new loger level in custom data
+        self.addCustomData("loggerlevel", value)
+        self.saveCustomData(self._customData)
+        
         # update the state driver to the level set
         self.setDriver("GV20", value)
         
@@ -1013,7 +1141,7 @@ class Controller(polyinterface.Controller):
     def getCustomData(self, key):
 
         # return data from custom data for key
-        return self._customData[key]
+        return self._customData.get(key)
 
     # discover bridges and SBB devices
     def discover(self):
@@ -1178,7 +1306,6 @@ def getValidNodeAddress(s):
 
     # remove <>`~!@#$%^&*(){}[]?/\;:"' characters
     addr = re.sub(r"[.<>`~!@#$%^&*(){}[\]?/\\;:\"']+", "", s)
-
 
     return addr[:14].lower()
 

@@ -2,7 +2,7 @@
   <nodeDef id="CONTROLLER" nls="CTR">
     <editors />
     <sts>
-      <st id="ST" editor="CTR_BOOL" />
+      <st id="ST" editor="_2_0" /> <!-- ISY Bool UOM -->
       <st id="GV20" editor="CTR_LOGLEVEL" />
     </sts>
     <cmds>
@@ -19,7 +19,7 @@
   <nodeDef id="BRIDGE" nls="BRD">
     <editors />
     <sts>
-      <st id="ST" editor="CTR_BOOL" />
+      <st id="ST" editor="_2_0" /> <!-- ISY Bool UOM -->
     </sts>
     <cmds>
       <sends />

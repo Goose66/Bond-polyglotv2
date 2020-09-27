@@ -9,7 +9,8 @@ From the Polyglot Dashboard:
 3. Modify the following optional Custom Configuration Parameters:
 
     ##### Advanced Configuration:
-    - key: shortPoll, value: polling interval for status from bridge(s) and devices - defaults to 20 (longPoll is not used)
+    - key: shortPoll, value: polling interval for status from bridge(s) and devices - defaults to 60 (longPoll is not used). 
+    NOTE: The Bond Bridge provides instantaneous state updates over UDP (BPUP) and frequent polling for state is not required.
 
 5. Once the "Bond NodeServer" node appears in ISY994i Adminstative Console, unlock the Bond devices on your network (e.g., power cycle your Bond bridge(s)) and then click "Discover Devices" to load nodes for each of the devices setup in your bridge. Once unlocked by power cycling, you have 10 minutes to intiate the Discover Devices command. THIS PROCESS MAY TAKE SEVERAL SECONDS depending on the number of Bond bridges and devices there are, so please be patient and wait 30 seconds or more before retrying. Also, please check the Polyglot Dashboard for messages regarding Discover Devices failure conditions.
 

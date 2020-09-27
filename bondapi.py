@@ -11,10 +11,14 @@ import json
 from zeroconf import ServiceBrowser, Zeroconf
 import ipaddress
 import time
+import threading
+import re
+import socket
 
-# Configure a module level logger for module testing
-_LOGGER = logging.getLogger(__name__)
-#logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.DEBUG)
+# Pickup the root logger, and add a handler for module testing if none exists
+_LOGGER = logging.getLogger()
+if not _LOGGER.hasHandlers():
+    logging.basicConfig(format='%(asctime)s %(levelname)s:%(message)s', level=logging.DEBUG)
 
 # Bond Local REST API v2.9 spec.
 _API_ENDPOINT = "http://{host_name}{path}"
@@ -115,11 +119,19 @@ API_BRIDGE_INFO_FAILED = "error"
 # Timeout duration for HTTP calls - defined here for easy tweaking
 _HTTP_TIMEOUT = 6.05
 
+_BPUP_UDP_PORT = 30007
+_BPUP_KEEP_ALIVE_DATAGRAM = b"\n"
+_BPUP_STATE_PATH_REGEX = r"devices\/(.+)\/state"
+_BPUP_BUFFER_SIZE = 256
+_BPUP_KEEP_ALIVE_TIME = 90
+_BPUP_STATUS_TIMEOUT = 20
+_BPUP_ACK_TIMEOUT = 2
+
 # interface class for a particular Bond Bridge or SBB device
 class bondBridgeConnection(object):
 
     # Primary constructor method
-    def __init__(self, hostName, token, logger=_LOGGER):
+    def __init__(self, hostName, token, stateCallback=None, logger=_LOGGER):
 
         self._logger = logger
 
@@ -127,8 +139,21 @@ class bondBridgeConnection(object):
         self._hostName = hostName
         self._token = token
 
-        # open an HTTP session
-        self._bridgeSession = requests.Session()
+        self._BPUP_conn = None
+
+        # No HTTP sessions for Bond Bridge
+           
+        # if a callback function was specified, setup a thread for BPUP listener for status from Bridge
+        if stateCallback is not None:
+
+            self._logger.debug("Starting BPUP listener thread...")
+            self._listenerThread = threading.Thread(target=self._BPUP_Listener, name="BPUP_Listener", args=(stateCallback,))
+            self._listenerThread.daemon = True
+            try:
+                self._listenerThread.start()
+            except:
+                self._logger.error("Error starting listener thread.")
+                raise
 
     # Call the specified REST API
     def _call_api(self, api, deviceID=None, action=None, arg=None):
@@ -142,10 +167,10 @@ class bondBridgeConnection(object):
         path = api["path"].format(device_id = deviceID, action_id = action) 
 
         # uncomment the next line to dump HTTP request data to log file for debugging
-        self._logger.debug("HTTP %s data: %s", method + " " + path, payload)
+        #self._logger.debug("HTTP %s data: %s", method + " " + path, payload)
 
         try:
-            response = self._bridgeSession.request(method,
+            response = requests.request(method,
                 _API_ENDPOINT.format(
                     host_name = self._hostName,
                     path = path
@@ -168,7 +193,7 @@ class bondBridgeConnection(object):
             raise
 
         # uncomment the next line to dump HTTP response to log file for debugging
-        self._logger.debug("HTTP response code: %d data: %s", response.status_code, response.text)
+        #self._logger.debug("HTTP response code: %d data: %s", response.status_code, response.text)
 
         return response
 
@@ -253,7 +278,7 @@ class bondBridgeConnection(object):
         response = self._call_api(_API_DEVICE_ACTION, deviceID, action, argument)
 
         # If a good code was returned, then return True
-        if response and response.status_code == 204:
+        if response and response.status_code in (200, 204):
             return True
 
         # Otherwise, return False
@@ -297,9 +322,164 @@ class bondBridgeConnection(object):
 
         return (self._call_api(_API_GET_BRIDGE_VERSION) != False)   
 
-    # Close the session (prevents resource warnings when the class is released)
+    # Attempt to close the BPUP UDP socket if it exists
     def close(self):
-        self._bridgeSession.close()
+
+        # If the BPUP UDP socket is still open, then the 
+        if self._BPUP_conn is not None:
+
+            # close the BPUP UDB socket
+            # Note: this should also kill the listener thread
+            self._BPUP_conn.close()
+
+    # Establishes Bond Push UDP Protocol (BPUP) connection and listens for status change updates
+    # To be executed on seperate, non-blocking thread
+    def _BPUP_Listener(self, stateCallback):
+
+        self._logger.info("Started BPUP listener in new thread.")
+
+        # for tracking keep-alive time in BPUP
+        self._lastKeepAliveTime = 0
+
+        # Open a socket for communication with the bridge
+        conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            conn.connect((self._hostName, _BPUP_UDP_PORT))
+        except (socket.error, socket.herror, socket.gaierror) as e:
+            self._logger.error("Unable to establish UDP connection with Bond Bridge. Socket error: %s", str(e))
+            conn.close()
+            return
+        except:
+            self._logger.error("Unexpected error occurred in BPUP connection")
+            conn.close()
+            raise
+        
+        else: 
+
+            self._BPUP_conn = conn
+        
+            # Loop continuously and Listen for status messages over UDP connection
+            while True:
+
+                # check keep alive timer and send keep-alive
+                if not self._BPUP_keepAlive(conn):
+                    
+                    # if returns false, then error has already been logged just exit the loop
+                    break
+
+                # Get next status message
+                try:
+                    conn.settimeout(_BPUP_STATUS_TIMEOUT) # Only wait 60 seconds between keep alives
+                    msg = conn.recv(_BPUP_BUFFER_SIZE)
+
+                except socket.timeout:
+
+                    # no message, just let it fall to keep alive check
+                    pass
+
+                except socket.error as e:
+                    self._logger.error("UDP connection to Bond Bridge unexpectedly closed. Socket error: %s", str(e))
+                    conn.close
+                    break
+
+                except:
+                    self._logger.error("Unexpected error occurred in BPUP connection")
+                    conn.close()
+                    raise
+
+                else:
+
+                    # uncomment next line for debugging of message data
+                    #self._logger.debug("UDP message received from bridge: '%s'",  msg.decode("utf-8"))
+
+                    # attempt to parse status message from bridge
+                    try:
+    
+                        # check response
+                        # Note: BPUP byte list responses should parse with json.loads() including trailing newline character
+                        respData = json.loads(msg)
+
+                        # check for error message
+                        if "err_id" in respData:
+                            self._logger.warning("Bridge %s returned BPUP error: %d - %s", respData["B"], respData["err_id"], respData["err_msg"])
+                            conn.close()
+                            break
+
+                        # check for a status message
+                        elif "t" in respData:
+
+                            # parse details from status message device ID from status message
+                            state = respData["b"]
+                            matches = re.match(_BPUP_STATE_PATH_REGEX, respData["t"])
+                            if matches:
+
+                                # pull the device ID from the matched expression
+                                deviceID = matches.groups()[0]
+                                self._logger.debug("Status update message received from Bond Bridge: Device ID %s, Message %s", deviceID, state)
+
+                                # call state callback function in bridge
+                                stateCallback(deviceID, state) 
+
+                            else:
+                                raise KeyError
+
+                    except (json.decoder.JSONDecodeError, KeyError):
+                        self._logger.error("Bond Bridge returned unexpected message data '%s'. Connection closed.", msg.decode("utf-8"))
+                        conn.close()
+                        break
+
+            # set the connection instance variable back to none to indicate socket is closed (and thread has died)
+            self._BPUP_conn = None
+
+    # Send the keep alive to BPUP and check the response
+    def _BPUP_keepAlive(self, conn):
+ 
+        # check keep alive timer
+        currentTime = time.time()
+        if currentTime - self._lastKeepAliveTime > _BPUP_KEEP_ALIVE_TIME:
+
+            self._logger.debug("Sending keep alive message to Bond Bridge...")
+
+            # Check connection
+            try:
+                # set short timeout for response and send keep-alive
+                conn.settimeout(_BPUP_ACK_TIMEOUT)
+                conn.send(_BPUP_KEEP_ALIVE_DATAGRAM)
+
+                # wait for response
+                msg = conn.recv(_BPUP_BUFFER_SIZE)
+
+                # check response
+                # Note: BPUP byte list responses should parse with json.loads() including trailing newline charachter
+                respData = json.loads(msg)
+                bridgeID = respData["B"]
+                
+                # if no errors returned, then keep-alive successful
+                self._lastKeepAliveTime = currentTime
+                return True
+
+            except socket.timeout:
+                self._logger.error("Bond Bridge did not respond to keep-alive message - connection closed.")
+                conn.close()
+                return False
+
+            except socket.error as e:
+                self._logger.error("UDP Connection to Bond Bridge unexpectedly closed. Socket error: %s", str(e))
+                conn.close()
+                return False
+
+            except (json.decoder.JSONDecodeError, KeyError):
+                self._logger.error("Bond Bridge returned unexpected message data '%s'. Connection closed.", msg.decode("utf-8"))
+                conn.close()
+                return False
+
+            except:
+                self._logger.error("Unexpected error occurred in BPUP processing")
+                conn.close()
+                raise
+    
+        else:
+            return True
 
 def bondGetBridgeInfo(hostName, token, logger=_LOGGER):
     """Make authenticated call to retrieve the Bridge/SBB Device info - for external calling

@@ -1,8 +1,4 @@
 <editors>
-  <editor id="CTR_BOOL">
-    <!-- ISY Bool UOM -->
-    <range uom="2" subset="0,1" />
-  </editor>
   <editor id="CTR_LOGLEVEL">
     <range uom="25" subset="0,10,20,30,40,50" nls="IX_CTR_LL" />
   </editor>

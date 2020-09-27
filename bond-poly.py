@@ -792,7 +792,7 @@ class Bridge(polyinterface.Node):
         self.bondBridge = bondBridgeConnection(self._bridgeHostName, self._bridgeToken, stateCallback=self._BPUP_statusUpdate, logger=_LOGGER)
 
         # register the stop method for the bridge node
-        #self.controller.poly.onStop(self.stop)
+        self.controller.poly.onStop(self.stop)
 
     # nodeserver is being shutdown
     def stop(self):
@@ -1074,16 +1074,6 @@ class Controller(polyinterface.Controller):
     def stop(self):
                            
         # bridge nodes have registerd their own stop() methods to handle their own connections
-        # iterate through the nodes of the nodeserver
-        for addr in self.nodes:
-        
-            # ignore the controller node
-            if addr != self.address:
-
-                # if the device is a bridge node, call the nodes stop method
-                node = self.controller.nodes[addr]
-                if node.id == "BRIDGE":
-                    node.stop()
 
         # Set the nodeserver status flag to indicate nodeserver is not running
         self.setDriver("ST", 0, True, True)
